@@ -1,17 +1,24 @@
-"""Command-line entry point: `login`, `run` and `render`.
+"""Command-line entry point: `serve`, `login`, `run` and `render`.
 
-`run` builds a digest of every configured source and `render` rebuilds the HTML
-from a saved digest.json; both are thin wrappers over `scrollforme.digest`.
+`serve` starts the local web app (setup wizard and dashboard). `run` builds a
+digest of every configured source and `render` rebuilds the HTML from a saved
+digest.json; both are thin wrappers over `scrollforme.digest`.
 """
 
 import argparse
 from pathlib import Path
 
+import uvicorn
 from loguru import logger
 
 from scrollforme.digest import build_digest, rerender
 from scrollforme.browser import open_profile_for_login
+from scrollforme.server.app import create_app
+from scrollforme.server.context import AppContext
 from scrollforme.config import DEFAULT_CONFIG_PATH, load_settings
+
+DEFAULT_PORT = 8765
+DEFAULT_WEB_DIR = Path(__file__).resolve().parents[2] / "web" / "build"
 
 
 def main() -> None:
@@ -24,6 +31,10 @@ def _build_parser() -> argparse.ArgumentParser:
 	parser = argparse.ArgumentParser(prog="scrollforme", description=__doc__)
 	parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
 	commands = parser.add_subparsers(required=True)
+	serve = commands.add_parser("serve", help="start the local web app")
+	serve.add_argument("--port", type=int, default=DEFAULT_PORT)
+	serve.add_argument("--web-dir", type=Path, default=DEFAULT_WEB_DIR)
+	serve.set_defaults(handler=_serve)
 	commands.add_parser("login", help="open the browser profile to log in").set_defaults(
 		handler=_login
 	)
@@ -34,6 +45,18 @@ def _build_parser() -> argparse.ArgumentParser:
 	render.add_argument("digest_json", type=Path)
 	render.set_defaults(handler=_render)
 	return parser
+
+
+def _serve(args: argparse.Namespace) -> None:
+	web_dir = args.web_dir if (args.web_dir / "index.html").is_file() else None
+	if web_dir is None:
+		logger.error(
+			"No frontend build in {}; run `pnpm --dir web build`. Serving the API only.",
+			args.web_dir,
+		)
+	app = create_app(AppContext(args.config.resolve()), web_dir)
+	logger.info("Open http://127.0.0.1:{}/", args.port)
+	uvicorn.run(app, host="127.0.0.1", port=args.port)
 
 
 def _login(args: argparse.Namespace) -> None:

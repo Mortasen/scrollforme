@@ -4,7 +4,15 @@ from pathlib import Path
 import pytest
 
 from scrollforme import config
-from scrollforme.config import get_settings, load_settings, parse_settings, use_settings
+from scrollforme.config import (
+	default_raw_config,
+	get_settings,
+	load_settings,
+	parse_settings,
+	read_raw_config,
+	save_raw_config,
+	use_settings,
+)
 
 REPO_ROOT = Path(__file__).parent.parent
 EXAMPLE_CONFIG = REPO_ROOT / "scrollforme.example.toml"
@@ -49,3 +57,24 @@ def test_get_settings_returns_what_use_settings_set(monkeypatch):
 	settings = load_settings(EXAMPLE_CONFIG)
 	use_settings(settings)
 	assert get_settings() is settings
+
+
+def test_parsing_does_not_change_the_raw_config(tmp_path):
+	raw = tomllib.loads(EXAMPLE_CONFIG.read_text())
+	before = tomllib.loads(EXAMPLE_CONFIG.read_text())
+	parse_settings(raw, base_dir=tmp_path)
+	assert raw == before
+
+
+def test_saved_config_reads_back_unchanged(tmp_path):
+	raw = default_raw_config() | {"sources": [{"module": "reddit.com", "description": "news"}]}
+	path = tmp_path / "scrollforme.toml"
+	save_raw_config(raw, path)
+	assert read_raw_config(path) == raw
+
+
+def test_invalid_config_is_not_saved(tmp_path):
+	path = tmp_path / "scrollforme.toml"
+	with pytest.raises(ValueError):
+		save_raw_config(default_raw_config(), path)
+	assert not path.exists()

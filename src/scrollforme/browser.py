@@ -16,6 +16,12 @@ from scrollforme.config import BrowserSettings
 NODRIVER_COMPATIBLE_ARGS = ["--password-store=basic", "--no-first-run"]
 
 
+def start_login_browser(browser: BrowserSettings, urls: list[str]) -> subprocess.Popen:
+	"""Launch Chrome on the scrollforme profile without waiting; the caller tracks the process."""
+	browser.profile_dir.mkdir(parents=True, exist_ok=True)
+	return subprocess.Popen(build_login_command(browser, urls))
+
+
 def open_profile_for_login(browser: BrowserSettings, urls: list[str]) -> None:
 	"""Launch Chrome on the scrollforme profile and wait until the user closes it."""
 	browser.profile_dir.mkdir(parents=True, exist_ok=True)

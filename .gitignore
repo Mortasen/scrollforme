@@ -8,3 +8,7 @@ __pycache__/
 scrollforme.toml
 profile/
 output/
+
+# Frontend build output
+web/build/
+web/node_modules/

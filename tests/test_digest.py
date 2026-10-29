@@ -50,3 +50,12 @@ def test_rerender_rebuilds_html_from_json(tmp_path):
 def test_modules_without_a_source_are_reported(tmp_path):
 	_fake_modules(tmp_path)
 	assert unused_modules(_settings(tmp_path, ["good.com"])) == ["broken.com", "spare.com"]
+
+
+def test_progress_is_reported_before_each_source(tmp_path):
+	_fake_modules(tmp_path)
+	seen = []
+	build_digest(
+		_settings(tmp_path, ["good.com", "broken.com"]), lambda i, s: seen.append((i, s.module))
+	)
+	assert seen == [(0, "good.com"), (1, "broken.com")]

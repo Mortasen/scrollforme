@@ -9,6 +9,7 @@ JSON record without touching the browser.
 import json
 from pathlib import Path
 from datetime import datetime
+from collections.abc import Callable
 
 from loguru import logger
 
@@ -17,20 +18,33 @@ from scrollforme.config import Settings, Source, use_settings
 from scrollforme.site_modules import available_domains, load_browse
 from scrollforme.models import SourceResult, result_from_dict, result_to_dict
 
+SourceStarted = Callable[[int, Source], None]
+"""Called with a source's position and the source just before it is browsed."""
 
-def build_digest(settings: Settings) -> Path:
+
+def _ignore_progress(index: int, source: Source) -> None:
+	pass
+
+
+def build_digest(settings: Settings, on_source_start: SourceStarted = _ignore_progress) -> Path:
 	"""Run all sources with `settings` and return the path of the HTML digest."""
 	use_settings(settings)
 	_warn_about_unused_modules(settings)
 	started_at = datetime.now()
-	results = collect_results(settings)
+	results = collect_results(settings, on_source_start)
 	run_dir = settings.output_dir / started_at.strftime("%Y-%m-%d_%H%M%S")
 	return write_run(run_dir, results, started_at)
 
 
-def collect_results(settings: Settings) -> list[SourceResult]:
+def collect_results(
+	settings: Settings, on_source_start: SourceStarted = _ignore_progress
+) -> list[SourceResult]:
 	"""Browse every source, one at a time: they share one browser profile, which Chrome locks."""
-	return [_browse_or_record_error(source, settings) for source in settings.sources]
+	results = []
+	for index, source in enumerate(settings.sources):
+		on_source_start(index, source)
+		results.append(_browse_or_record_error(source, settings))
+	return results
 
 
 def write_run(run_dir: Path, results: list[SourceResult], generated_at: datetime) -> Path:

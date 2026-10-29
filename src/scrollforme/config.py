@@ -10,7 +10,9 @@ settings live here: `use_settings` sets them, `get_settings` reads them.
 
 import tomllib
 from pathlib import Path
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+
+import tomli_w
 
 DEFAULT_CONFIG_PATH = Path("scrollforme.toml")
 DEFAULT_MCP_ROOT = Path.home() / ".local/src/stealth-browser-mcp"
@@ -79,11 +81,34 @@ def get_settings() -> Settings:
 	return _active_settings
 
 
+def default_raw_config() -> dict:
+	"""A config with every setting at its default and no sources yet, as TOML data."""
+	return {
+		"output_dir": "output",
+		"modules_dir": "modules",
+		"browser": {"profile_dir": "profile", "chrome_binary": "google-chrome", "headless": False},
+		"mcp": asdict(McpSettings()),
+		"agent": asdict(AgentSettings()),
+		"sources": [],
+	}
+
+
+def read_raw_config(path: Path = DEFAULT_CONFIG_PATH) -> dict:
+	"""The config file's TOML data as written, without resolving any paths."""
+	with path.open("rb") as file:
+		return tomllib.load(file)
+
+
+def save_raw_config(raw: dict, path: Path = DEFAULT_CONFIG_PATH) -> Settings:
+	"""Validate `raw` and write it to `path`; raise ValueError or TypeError if invalid."""
+	settings = parse_settings(raw, base_dir=path.parent)
+	path.write_text(tomli_w.dumps(raw))
+	return settings
+
+
 def load_settings(path: Path = DEFAULT_CONFIG_PATH) -> Settings:
 	"""Read and validate the TOML file at `path`."""
-	with path.open("rb") as file:
-		raw = tomllib.load(file)
-	return parse_settings(raw, base_dir=path.parent)
+	return parse_settings(read_raw_config(path), base_dir=path.parent)
 
 
 def parse_settings(raw: dict, base_dir: Path) -> Settings:
@@ -94,12 +119,18 @@ def parse_settings(raw: dict, base_dir: Path) -> Settings:
 	_reject_blank_descriptions(sources)
 	return Settings(
 		sources=sources,
-		browser=_parse_browser(raw.get("browser", {}), base_dir),
-		mcp=_parse_mcp(raw.get("mcp", {})),
+		browser=parse_browser(raw.get("browser", {}), base_dir),
+		mcp=parse_mcp(raw.get("mcp", {})),
 		agent=AgentSettings(**raw.get("agent", {})),
-		output_dir=base_dir / raw.get("output_dir", "output"),
-		modules_dir=(base_dir / raw.get("modules_dir", "modules")).resolve(),
+		output_dir=resolve_dir(raw, "output_dir", base_dir),
+		modules_dir=resolve_dir(raw, "modules_dir", base_dir),
 	)
+
+
+def resolve_dir(raw: dict, key: str, base_dir: Path) -> Path:
+	"""The absolute path of the `output_dir` or `modules_dir` setting."""
+	defaults = {"output_dir": "output", "modules_dir": "modules"}
+	return (base_dir / Path(raw.get(key, defaults[key])).expanduser()).resolve()
 
 
 def _reject_blank_descriptions(sources: list[Source]) -> None:
@@ -108,12 +139,15 @@ def _reject_blank_descriptions(sources: list[Source]) -> None:
 		raise ValueError(f"sources without a description: {blank}")
 
 
-def _parse_browser(raw: dict, base_dir: Path) -> BrowserSettings:
-	profile_dir = Path(raw.pop("profile_dir", "profile")).expanduser()
-	return BrowserSettings(profile_dir=(base_dir / profile_dir).resolve(), **raw)
+def parse_browser(raw: dict, base_dir: Path) -> BrowserSettings:
+	"""Browser settings from a `[browser]` table; the profile path resolves against `base_dir`."""
+	options = {key: value for key, value in raw.items() if key != "profile_dir"}
+	profile_dir = Path(raw.get("profile_dir", "profile")).expanduser()
+	return BrowserSettings(profile_dir=(base_dir / profile_dir).resolve(), **options)
 
 
-def _parse_mcp(raw: dict) -> McpSettings:
+def parse_mcp(raw: dict) -> McpSettings:
+	"""MCP launch settings from an `[mcp]` table, with `~` expanded."""
 	expanded = {key: _expand_home(value) for key, value in raw.items()}
 	return McpSettings(**expanded)
 
