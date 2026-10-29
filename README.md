@@ -1,8 +1,37 @@
 # scrollforme
 
-Feeds like Reddit and Instagram are built to keep you scrolling. scrollforme lets an AI agent do the scrolling instead. You say in plain words what you use each site for. The agent visits the site in a browser that is already logged in as you, takes only what serves that purpose, and writes one static HTML page that ends.
+**Get your evenings back from the feed.** Reddit, Instagram and similar sites are built to keep you scrolling: infinite feeds, recommendations and "one more post". For people already stretched thin by work, this is compression burnout's quiet tax. The few minutes you meant to spend checking what your friends posted or what's new in your field turn into an hour.
 
-Everything runs on your machine. The agent drives Chrome through [stealth-browser-mcp](https://github.com/vibheksoni/stealth-browser-mcp) and runs on the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk).
+scrollforme does the scrolling for you. You say in plain words what you actually use each site for ("my friends' posts", "new open models in r/LocalLLaMA"). A local AI agent visits each site in a browser that's logged in as you. It takes only what serves that purpose and hands back **one static page that ends**: no infinite scroll, no recommendations, no notifications, no like counts.
+
+**Who it's for:** anyone who checks a few feeds for a real reason and loses far more time to them than that reason needs.
+
+**How it gives time back:** reading a short digest takes a couple of minutes, not an open-ended session. It adds no alerts or prompts. You open the page when you want it, read it, and you're done.
+
+Everything runs on your machine. The agent drives your own Chrome through [stealth-browser-mcp](https://github.com/vibheksoni/stealth-browser-mcp) and runs on the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk).
+
+## Quick start (web app)
+
+Requirements:
+- [uv](https://docs.astral.sh/uv/)
+- [pnpm](https://pnpm.io/)
+- Google Chrome
+- a [stealth-browser-mcp](https://github.com/vibheksoni/stealth-browser-mcp) checkout with its own venv (default `~/.local/src/stealth-browser-mcp`)
+- a Claude Code login or an `ANTHROPIC_API_KEY`
+
+```bash
+uv sync
+pnpm --dir web install && pnpm --dir web build
+uv run scrollforme serve        # open http://127.0.0.1:8765/
+```
+
+The setup page walks you through it:
+1. Check this machine.
+2. Choose your sites and describe what you use each for.
+3. Set limits on turns and dollars per site.
+4. Save, then log in to each site once in scrollforme's own browser profile.
+
+The dashboard then shows your latest digest, a **Run now** button with live progress, and earlier digests.
 
 ## How it works
 
@@ -40,7 +69,7 @@ A module can do anything else it likes instead (an API, RSS, its own parsing) as
 
 Chrome 136 and later no longer allow remote debugging on your default profile, and Chrome locks any profile that is already open. So scrollforme keeps its own persistent profile in `profile/`. You log in to each site there once and the logins persist.
 
-## Setup
+## Command line
 
 Requirements: [uv](https://docs.astral.sh/uv/), Google Chrome, and a stealth-browser-mcp checkout with its own venv (the default location is `~/.local/src/stealth-browser-mcp`).
 
@@ -61,6 +90,8 @@ From Python (for a scheduler or another front end), call `scrollforme.digest.bui
 ## Development
 
 ```bash
+uv run scrollforme serve          # API on :8765
+pnpm --dir web dev                # frontend with hot reload; /api is proxied to :8765
 uv run pytest
 uv run ruff format . && uv run ruff check .
 ```

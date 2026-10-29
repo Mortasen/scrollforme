@@ -14,7 +14,9 @@ Read `README.md` first for what the tool does and how a run flows.
   - `models`: the per-source result record.
   - `browser`: manual login.
   - `render` + `templates/`: generic HTML rendering of free-form dicts.
-  - `cli`: thin argparse wrapper over `digest`.
+  - `cli`: thin argparse wrapper over `digest`, plus `serve`.
+  - `server/`: the local FastAPI app for the web UI. `guard.py` refuses non-localhost Hosts, cross-site Origins and non-JSON writes; keep it, because the config names programs the server runs.
+- `web/`: the SvelteKit SPA (setup wizard and dashboard), on the user's web standard. Read `web/AGENTS.md` before changing it.
 - The agent's output schema is a free-form object. Live runs showed the model sends nested lists as JSON-encoded strings, even with a recursive schema, so `agent.decode_nested_json` decodes them.
 - Personal files are git-ignored and must stay out of commits: `scrollforme.toml`, `profile/` (holds real login cookies), `output/`.
 
