@@ -78,3 +78,10 @@ def test_setup_lists_modules_and_checks(client, tmp_path):
 	body = client.get("/api/setup").json()
 	assert body["modules"] == ["reddit.com"]
 	assert {check["name"] for check in body["checks"]} >= {"Chrome", "Browser profile"}
+
+
+def test_partial_config_is_returned_with_defaults(client, tmp_path):
+	(tmp_path / "scrollforme.toml").write_text('[[sources]]\nmodule = "a.com"\ndescription = "x"\n')
+	config = client.get("/api/config").json()["config"]
+	assert config["agent"]["model"] == "claude-opus-5-5"
+	assert config["sources"] == [{"module": "a.com", "description": "x"}]

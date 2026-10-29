@@ -93,6 +93,15 @@ def default_raw_config() -> dict:
 	}
 
 
+def with_defaults(raw: dict) -> dict:
+	"""`raw` with every missing setting, and every missing key of a table, at its default."""
+	merged = default_raw_config() | raw
+	for key, value in default_raw_config().items():
+		if isinstance(value, dict):
+			merged[key] = value | raw.get(key, {})
+	return merged
+
+
 def read_raw_config(path: Path = DEFAULT_CONFIG_PATH) -> dict:
 	"""The config file's TOML data as written, without resolving any paths."""
 	with path.open("rb") as file:

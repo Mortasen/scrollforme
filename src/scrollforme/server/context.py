@@ -5,7 +5,7 @@ from pathlib import Path
 from dataclasses import dataclass, field
 
 from scrollforme.server.runs import RunManager
-from scrollforme.config import default_raw_config, read_raw_config, resolve_dir
+from scrollforme.config import default_raw_config, read_raw_config, resolve_dir, with_defaults
 
 
 @dataclass
@@ -26,8 +26,10 @@ class AppContext:
 		return self.config_path.is_file()
 
 	def raw_config(self) -> dict:
-		"""The saved config's TOML data, or the defaults before setup."""
-		return read_raw_config(self.config_path) if self.config_exists() else default_raw_config()
+		"""The saved config's TOML data with defaults filled in, or the defaults before setup."""
+		if not self.config_exists():
+			return default_raw_config()
+		return with_defaults(read_raw_config(self.config_path))
 
 	def output_dir(self) -> Path:
 		"""Where runs are saved."""
