@@ -1,15 +1,12 @@
 """reddit.com: the user's subreddits and home feed, without the endless scroll.
 
 The visit must look to Reddit like the user browsing it themselves: the normal www.reddit.com
-pages in their own logged-in, visible browser, opened one at a time and scrolled a screen at a
-time. So there are no shortcuts a person would not take (.json listings, the API, RSS,
-old.reddit.com), and a challenge or block page ends the visit instead of being worked around.
+pages in a new tab of their own everyday browser, opened one at a time and scrolled a screen at a
+time with PageDown. So there are no shortcuts a person would not take (.json listings, the API,
+RSS, old.reddit.com), and a challenge or block page ends the visit instead of being worked around.
 """
 
-from loguru import logger
-
 from scrollforme.agent import browse_site
-from scrollforme.config import get_settings
 
 from .subreddits import listing_url, subreddits_named_in
 
@@ -23,24 +20,22 @@ _MAX_POST_PAGES = 5
 _BROWSING_GUIDANCE = f"""\
 Browse the way the user would by hand, so the visit looks like theirs. Use only the ordinary
 www.reddit.com pages a person opens: subreddit listings, the home feed and post pages. Never
-request .json, /api/, RSS or old.reddit.com URLs, and never follow links off Reddit. Open one page
-at a time. On a listing, scroll down about one screen at a time (scroll_page with amount 900 and
-smooth on), a few screens at most, never straight to the bottom. Open a post page only when the
-description asks about comments or a title alone does not say what the post is, and open at most
-{_MAX_POST_PAGES} of them.
+request .json, /api/, RSS or old.reddit.com URLs, and never follow links off Reddit. Stay in the
+one tab you opened and go from page to page with navigate_page in it. On a listing, press PageDown
+a few times, once per screen, letting new posts load in between; never jump to the end. Open a
+post page only when the description asks about comments or a title alone does not say what the
+post is, and open at most {_MAX_POST_PAGES} of them.
 
-Read pages with query_elements, not get_page_content: a Reddit page's full HTML is too large for
-one reply. Posts should be shreddit-post elements whose attributes carry post-title, permalink,
-subreddit-prefixed-name and created-timestamp. Every result costs context, so scroll first and
-then query "shreddit-post" once per listing with a limit of 15; a repeated query returns the same
-first posts. If there are none, query article elements or links whose href contains /comments/
-instead. Skip shreddit-ad-post elements and anything marked promoted.
+Read pages with take_snapshot, or with get_page_text where it is available, which is cheaper.
+Each snapshot costs context, so take one after a few PageDowns rather than after every press. A
+post shows up as a link whose URL contains /comments/, with the title as its text and the
+subreddit (r/<name>) next to it. Skip anything marked Promoted or Sponsored.
 
-Leave cookie banners, "open in app" and other overlays alone: you cannot click, and the posts are
-in the page underneath. If you see "Prove your humanity", a CAPTCHA, a "blocked" notice or a
-logged-out page, stop at once. Do not retry or look for a way around it. Close the browser and
-return {{"notice": "..."}} saying what you saw and that the user should open Reddit with
-`scrollforme login` and sort it out there.
+Leave cookie banners, "open in app" prompts and other overlays alone; the posts are in the page
+underneath. If one hides them, press Escape once, as a person would. If you see "Prove your
+humanity", a CAPTCHA, a "blocked" notice or a logged-out page, stop at once. Do not retry or look
+for a way around it. Return {{"notice": "..."}} saying what you saw and that the user should open
+Reddit in their own browser and sort it out there.
 
 For each post give its title, subreddit, url (the permalink as a full https://www.reddit.com URL)
 and a one-line summary. Leave out scores, vote counts and comment counts."""
@@ -48,16 +43,10 @@ and a one-line summary. Leave out scores, vote counts and comment counts."""
 
 def browse(description: str) -> dict:
 	"""Visit Reddit for the purpose in `description` and return what was found."""
-	_warn_if_headless()
 	subreddits = subreddits_named_in(description)
 	start_url = listing_url(subreddits[0]) if subreddits else _HOME_FEED_URL
 	guidance = f"{_route_guidance(subreddits)}\n\n{_BROWSING_GUIDANCE}"
 	return browse_site("reddit.com", start_url, description, guidance)
-
-
-def _warn_if_headless() -> None:
-	if get_settings().browser.headless:
-		logger.warning("reddit.com: headless Chrome is easy to tell apart from the user's own")
 
 
 def _route_guidance(subreddits: list[str]) -> str:
