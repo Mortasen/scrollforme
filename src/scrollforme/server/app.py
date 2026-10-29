@@ -31,5 +31,7 @@ def _serve_frontend(app: FastAPI, web_dir: Path) -> None:
 		if path.startswith("api/"):
 			raise HTTPException(404)
 		file = (web_dir / path).resolve()
-		inside = file.is_relative_to(web_dir) and file.is_file()
-		return FileResponse(file if inside else web_dir / "index.html")
+		if file.is_relative_to(web_dir) and file.is_file() and file.name != "index.html":
+			return FileResponse(file)
+		# index.html names the current hashed assets, so browsers must re-check it after a rebuild.
+		return FileResponse(web_dir / "index.html", headers={"Cache-Control": "no-cache"})

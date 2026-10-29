@@ -85,3 +85,16 @@ def test_partial_config_is_returned_with_defaults(client, tmp_path):
 	config = client.get("/api/config").json()["config"]
 	assert config["agent"]["model"] == "claude-opus-5-5"
 	assert config["sources"] == [{"module": "a.com", "description": "x"}]
+
+
+def test_frontend_falls_back_to_uncached_index(tmp_path):
+	web_dir = tmp_path / "build"
+	(web_dir / "_app").mkdir(parents=True)
+	(web_dir / "index.html").write_text("<p>app</p>")
+	(web_dir / "_app" / "a.js").write_text("js")
+	client = TestClient(create_app(AppContext(tmp_path / "c.toml"), web_dir), base_url=LOCAL)
+	page = client.get("/setup")
+	assert page.text == "<p>app</p>"
+	assert page.headers["cache-control"] == "no-cache"
+	assert client.get("/_app/a.js").text == "js"
+	assert client.get("/../c.toml").text == "<p>app</p>"
