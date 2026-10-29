@@ -4,6 +4,7 @@ title: First live end-to-end run
 status: To Do
 assignee: []
 created_date: '2026-10-29 18:56'
+updated_date: '2026-10-29 18:58'
 labels:
   - mvp
 dependencies: []
@@ -21,4 +22,5 @@ Log in via 'scrollforme login', run against one Reddit source, and check the age
 <!-- AC:BEGIN -->
 - [ ] #1 One live run produces a digest.html with real items
 - [ ] #2 Observed cost/turns recorded in README defaults
+- [ ] #3 A run cut off by max_turns or the budget before close_instance does not leave Chrome holding the profile lock for the next source
 <!-- AC:END -->

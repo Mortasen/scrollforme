@@ -10,10 +10,20 @@ from loguru import logger
 
 from scrollforme.config import BrowserSettings
 
+# nodriver, which stealth-browser-mcp launches Chrome through, always passes
+# --password-store=basic. Cookies are encrypted with a key chosen by this
+# flag, so the login launch must match it or the agent finds itself logged out.
+NODRIVER_COMPATIBLE_ARGS = ["--password-store=basic", "--no-first-run"]
+
 
 def open_profile_for_login(browser: BrowserSettings, urls: list[str]) -> None:
 	"""Launch Chrome on the scrollforme profile and wait until the user closes it."""
 	browser.profile_dir.mkdir(parents=True, exist_ok=True)
-	command = [browser.chrome_binary, f"--user-data-dir={browser.profile_dir}", *urls]
 	logger.info("Log in to each site, then close the browser window to finish.")
-	subprocess.run(command, check=False)
+	subprocess.run(build_login_command(browser, urls), check=False)
+
+
+def build_login_command(browser: BrowserSettings, urls: list[str]) -> list[str]:
+	"""The Chrome command line for a manual login session on the profile."""
+	profile_arg = f"--user-data-dir={browser.profile_dir}"
+	return [browser.chrome_binary, profile_arg, *NODRIVER_COMPATIBLE_ARGS, *urls]
