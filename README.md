@@ -45,3 +45,7 @@ uv run ruff format . && uv run ruff check .
 ```
 
 Tasks are tracked with [Backlog.md](https://github.com/MrLesk/Backlog.md) in `backlog/`.
+
+## Screenshot
+
+![Project Screenshot](images/scroll_for_me_architecture.png)
