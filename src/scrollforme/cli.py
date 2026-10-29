@@ -5,18 +5,17 @@ rebuilds the HTML from a saved JSON record without touching the browser.
 """
 
 import json
-import asyncio
 import argparse
 from pathlib import Path
 from datetime import datetime
 
 from loguru import logger
 
-from scrollforme.agent import collect_source
 from scrollforme.render import render_digest
+from scrollforme.site_modules import load_browse
 from scrollforme.browser import open_profile_for_login
-from scrollforme.config import DEFAULT_CONFIG_PATH, Settings, Source, load_settings
-from scrollforme.models import SourceDigest, digest_from_dict, digest_to_dict
+from scrollforme.models import SourceResult, result_from_dict, result_to_dict
+from scrollforme.config import DEFAULT_CONFIG_PATH, Settings, Source, load_settings, use_settings
 
 
 def main() -> None:
@@ -32,7 +31,7 @@ def _build_parser() -> argparse.ArgumentParser:
 	commands.add_parser("login", help="open the browser profile to log in").set_defaults(
 		handler=_login
 	)
-	commands.add_parser("run", help="read every source and write a digest").set_defaults(
+	commands.add_parser("run", help="browse every configured site and write a digest").set_defaults(
 		handler=_run
 	)
 	render = commands.add_parser("render", help="rebuild HTML from a saved digest.json")
@@ -43,46 +42,45 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def _login(args: argparse.Namespace) -> None:
 	settings = load_settings(args.config)
-	open_profile_for_login(settings.browser, [source.url for source in settings.sources])
+	urls = [f"https://www.{source.module}/" for source in settings.sources]
+	open_profile_for_login(settings.browser, list(dict.fromkeys(urls)))
 
 
 def _run(args: argparse.Namespace) -> None:
 	settings = load_settings(args.config)
+	use_settings(settings)
 	started_at = datetime.now()
-	digests = asyncio.run(_collect_all(settings))
+	results = [_browse_or_record_error(source, settings) for source in settings.sources]
 	run_dir = settings.output_dir / started_at.strftime("%Y-%m-%d_%H%M%S")
-	html_path = _write_run(run_dir, digests, started_at)
+	html_path = _write_run(run_dir, results, started_at)
 	logger.info("Digest written to {}", html_path)
 
 
-async def _collect_all(settings: Settings) -> list[SourceDigest]:
-	"""Read sources one at a time: they share one browser profile, which Chrome locks."""
-	return [await _collect_or_record_error(source, settings) for source in settings.sources]
-
-
-async def _collect_or_record_error(source: Source, settings: Settings) -> SourceDigest:
+def _browse_or_record_error(source: Source, settings: Settings) -> SourceResult:
+	"""Run one module; sources go one at a time because they share one locked profile."""
 	try:
-		return await collect_source(source, settings)
+		data = load_browse(settings.modules_dir, source.module)(source.description)
+		return SourceResult(source.module, source.description, data=data)
 	except Exception as error:
-		logger.exception("Failed to read {}", source.name)
-		return SourceDigest(source.name, source.url, items=[], error=str(error))
+		logger.exception("Failed to browse {}", source.module)
+		return SourceResult(source.module, source.description, error=str(error))
 
 
-def _write_run(run_dir: Path, digests: list[SourceDigest], started_at: datetime) -> Path:
+def _write_run(run_dir: Path, results: list[SourceResult], started_at: datetime) -> Path:
 	run_dir.mkdir(parents=True, exist_ok=True)
 	record = {
 		"generated_at": started_at.isoformat(),
-		"digests": [digest_to_dict(d) for d in digests],
+		"results": [result_to_dict(result) for result in results],
 	}
 	(run_dir / "digest.json").write_text(json.dumps(record, indent="\t", ensure_ascii=False))
 	html_path = run_dir / "digest.html"
-	html_path.write_text(render_digest(digests, started_at))
+	html_path.write_text(render_digest(results, started_at))
 	return html_path
 
 
 def _render(args: argparse.Namespace) -> None:
 	record = json.loads(args.digest_json.read_text())
-	digests = [digest_from_dict(data) for data in record["digests"]]
+	results = [result_from_dict(data) for data in record["results"]]
 	html_path = args.digest_json.with_suffix(".html")
-	html_path.write_text(render_digest(digests, datetime.fromisoformat(record["generated_at"])))
+	html_path.write_text(render_digest(results, datetime.fromisoformat(record["generated_at"])))
 	logger.info("Digest written to {}", html_path)

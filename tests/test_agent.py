@@ -4,6 +4,8 @@ from scrollforme.config import load_settings
 from scrollforme.agent import (
 	READ_ONLY_BROWSER_TOOLS,
 	WRITING_BROWSER_TOOLS,
+	SiteTask,
+	decode_nested_json,
 	build_options,
 	build_prompt,
 )
@@ -39,8 +41,23 @@ def test_server_starts_with_unused_sections_disabled():
 	assert "--disable-element-interaction" not in args
 
 
-def test_prompt_names_the_profile_and_item_cap():
-	source = SETTINGS.sources[0]
-	prompt = build_prompt(source, SETTINGS)
+def test_prompt_carries_profile_site_and_purpose():
+	task = SiteTask("reddit.com", "https://www.reddit.com/", "new open models", "skip promos")
+	prompt = build_prompt(task, SETTINGS)
 	assert str(SETTINGS.browser.profile_dir) in prompt
-	assert f"up to {source.max_items} items" in prompt
+	assert "stay on reddit.com" in prompt
+	assert "new open models" in prompt
+	assert "skip promos" in prompt
+
+
+def test_output_is_any_json_object():
+	assert build_options(SETTINGS).output_format["schema"]["type"] == "object"
+
+
+def test_json_encoded_nested_values_are_decoded():
+	raw = {"status": "ok", "posts": '[{"title": "x", "tags": "[\\"a\\"]"}]', "note": "[draft] text"}
+	assert decode_nested_json(raw) == {
+		"status": "ok",
+		"posts": [{"title": "x", "tags": ["a"]}],
+		"note": "[draft] text",
+	}

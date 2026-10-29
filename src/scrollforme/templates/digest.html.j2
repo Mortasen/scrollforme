@@ -1,3 +1,16 @@
+{%- macro show(value) -%}
+{%- if value is mapping -%}
+	{%- set title, url, rest = value | split_headline -%}
+	{%- if url %}<p class="headline"><a href="{{ url }}" rel="noreferrer">{{ title }}</a></p>{% endif -%}
+	{%- if rest %}<dl>{% for key, item in rest.items() %}<dt>{{ key | replace("_", " ") }}</dt><dd>{{ show(item) }}</dd>{% endfor %}</dl>{% endif -%}
+{%- elif value is string -%}
+	{%- if value is link %}<a href="{{ value }}" rel="noreferrer">{{ value }}</a>{% else %}{{ value }}{% endif -%}
+{%- elif value is iterable -%}
+	<ul>{% for item in value %}<li>{{ show(item) }}</li>{% endfor %}</ul>
+{%- elif value is not none -%}
+	{{ value }}
+{%- endif -%}
+{%- endmacro -%}
 <!doctype html>
 <html lang="en">
 <head>
@@ -11,14 +24,19 @@
 		:root { --bg: #161615; --text: #e9e7e2; --muted: #9a9892; --rule: #2e2d2b; --link: #8fb4e8; }
 	}
 	body { background: var(--bg); color: var(--text); font: 17px/1.55 Georgia, serif; margin: 0; }
-	main { max-width: 42rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
-	header p, .meta, .notes, footer { color: var(--muted); font-size: 0.9rem; }
+	main { max-width: 42rem; margin: 0 auto; padding: 2rem 1rem 4rem; overflow-wrap: anywhere; }
+	header p, .purpose, footer { color: var(--muted); font-size: 0.9rem; }
 	section { border-top: 1px solid var(--rule); margin-top: 2rem; padding-top: 1rem; }
-	h2 { font-size: 1.2rem; margin: 0 0 0.5rem; }
-	article { margin: 1.25rem 0; }
-	h3 { font-size: 1.05rem; margin: 0; }
+	h2 { font-size: 1.2rem; margin: 0; }
+	.purpose { margin: 0.25rem 0 1rem; font-style: italic; }
 	a { color: var(--link); }
-	.summary { margin: 0.25rem 0; }
+	.headline { font-weight: bold; margin: 0; }
+	ul { list-style: none; padding: 0; margin: 0; }
+	li { margin: 0 0 1.1rem; }
+	li li { margin: 0.2rem 0; }
+	dl { margin: 0.2rem 0; display: grid; grid-template-columns: max-content 1fr; gap: 0.1rem 0.75rem; }
+	dt { color: var(--muted); font-size: 0.85rem; padding-top: 0.15rem; }
+	dd { margin: 0; }
 	.error { color: #b3261e; }
 	footer { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1rem; text-align: center; }
 </style>
@@ -27,20 +45,14 @@
 <main>
 	<header>
 		<h1>Your digest</h1>
-		<p>{{ item_count }} items from {{ digests | length }} sources, collected {{ generated_at }}.</p>
+		<p>{{ results | length }} sites, collected {{ generated_at }}.</p>
 	</header>
-	{% for digest in digests %}
+	{% for result in results %}
 	<section>
-		<h2><a href="{{ digest.source_url }}" rel="noreferrer">{{ digest.source_name }}</a></h2>
-		{% if digest.error %}<p class="error">Could not read this source: {{ digest.error }}</p>{% endif %}
-		{% if digest.notes %}<p class="notes">{{ digest.notes }}</p>{% endif %}
-		{% for item in digest.items %}
-		<article>
-			<h3>{% if item.url %}<a href="{{ item.url }}" rel="noreferrer">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}</h3>
-			<p class="summary">{{ item.summary }}</p>
-			{% if item.author or item.posted_at %}<p class="meta">{{ item.author }}{% if item.author and item.posted_at %} · {% endif %}{{ item.posted_at }}</p>{% endif %}
-		</article>
-		{% endfor %}
+		<h2>{{ result.module }}</h2>
+		<p class="purpose">{{ result.description }}</p>
+		{% if result.error %}<p class="error">Could not read this site: {{ result.error }}</p>{% endif %}
+		{{ show(result.data) }}
 	</section>
 	{% endfor %}
 	<footer>That's everything. You're done.</footer>

@@ -3,6 +3,9 @@
 # Where run folders (digest.json + digest.html) are written.
 output_dir = "output"
 
+# Folder of per-website modules (modules/reddit.com, modules/instagram.com, ...).
+modules_dir = "modules"
+
 [browser]
 # A dedicated Chrome profile. Log in to each site once with `scrollforme login`.
 profile_dir = "profile"
@@ -17,16 +20,16 @@ args = ["~/.local/src/stealth-browser-mcp/src/server.py"]
 [agent]
 model = "claude-opus-5-5"
 effort = "medium"
-max_turns = 60          # per source
-max_budget_usd = 1.0    # per source
+max_turns = 60          # per site visit
+max_budget_usd = 1.0    # per site visit
+
+# One entry per site visit. `module` names a folder in modules_dir; `description`
+# says, in your own words, what you use that site for. Its browse() gets it verbatim.
+[[sources]]
+module = "reddit.com"
+description = """I follow r/LocalLLaMA and r/selfhosted for new open models and self-hosting
+tools. I want the day's notable posts, not memes or drama."""
 
 [[sources]]
-name = "r/LocalLLaMA"
-url = "https://www.reddit.com/r/LocalLLaMA/top/?t=day"
-max_items = 15
-
-[[sources]]
-name = "Instagram following"
-url = "https://www.instagram.com/?variant=following"
-max_items = 20
-instructions = "Only posts from accounts I follow, newest first. Describe images briefly."
+module = "instagram.com"
+description = "I only use Instagram to see what my friends posted. Show new posts from people I follow."

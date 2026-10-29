@@ -5,7 +5,16 @@ Read `README.md` first for what the tool does and how a run flows.
 ## Project facts
 
 - Python 3.12 managed with `uv`. Code is indented with tabs (enforced by `ruff format`). Imports go in groups (standard library, third party, local), and each group is sorted by line length, not alphabetically, which is why ruff's `I` rule is off.
-- `src/scrollforme/`: `config` (TOML → settings), `models` (agent output schema + validation), `agent` (Agent SDK options and prompt), `browser` (manual login), `render` + `templates/` (HTML), `cli`.
+- `modules/<domain>/` holds one Python package per website, and each exports only `browse(description: str) -> dict`. The dotted folder names can't be imported normally; `site_modules.load_browse` loads them from their files. The shipped modules are stubs that call `agent.browse_site`.
+- `src/scrollforme/`:
+  - `config`: TOML → settings, plus `use_settings`/`get_settings`, because `browse()` takes no settings argument.
+  - `site_modules`: the module loader.
+  - `agent`: Agent SDK options, prompt and `browse_site`.
+  - `models`: the per-source result record.
+  - `browser`: manual login.
+  - `render` + `templates/`: generic HTML rendering of free-form dicts.
+  - `cli`.
+- The agent's output schema is a free-form object. Live runs showed the model sends nested lists as JSON-encoded strings, even with a recursive schema, so `agent.decode_nested_json` decodes them.
 - Personal files are git-ignored and must stay out of commits: `scrollforme.toml`, `profile/` (holds real login cookies), `output/`.
 
 ## Safety invariants
@@ -18,8 +27,8 @@ Do not weaken these without the user's explicit agreement:
    - `strict_mcp_config=True` and `ENABLE_CLAUDEAI_MCP_SERVERS=false`.
 
    The last two settings matter: without them the account's claude.ai connectors (Google Drive and others) load into the agent. Adding a tool that can type, click, upload, run scripts or write files gives injected feed content a way to act as the logged-in user. `tests/test_agent.py` pins all of this, and the SDK init message's `tools` list is how to check it live.
-2. The agent returns JSON. Only `render.py`, with autoescaping on, produces HTML.
-3. Every source has `max_items`, and every run has `max_turns` and `max_budget_usd`.
+2. The agent returns JSON. Only `render.py`, with autoescaping on, produces HTML, and only `http(s)` strings become links.
+3. Every site visit has `max_turns` and `max_budget_usd`.
 
 ## Testing
 
