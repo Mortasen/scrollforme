@@ -1,0 +1,42 @@
+{
+	"standard": {
+		"version": "0.1.0",
+		"commit": "27e3615",
+		"dirty": false
+	},
+	"files": {
+		".web-standard/eslint.js": "9eee565016e6d1cbfaee4c1b08e68d00331bc1fdc7aa10ee4a0428b4ce28d5f4",
+		".web-standard/hooks/after-edit.ts": "307f0be9966c07bd55f9ccb8063bba5a83d47bc4360ca0aca558fbc5d28c9047",
+		".web-standard/hooks/edits.ts": "0e01694af7be66f877a3c42cc0d7e5d25ebd4139c648c0093f6a3d8dde4e6ee9",
+		".web-standard/hooks/guard-rules.ts": "693ac4e09fa140bcec0d7861082d0310720205b668cf4c47d40da7a308b2dbae",
+		".web-standard/hooks/guard.ts": "3bcdaa6657612f87911b75a9d0551c4d70045be9847b3c5ab4475aedd48a8b36",
+		".web-standard/hooks/standard-lib.ts": "72f932b0ee813eaa85644e643efebdf60ef1359850dd4dd6dc666e84521a1732",
+		".web-standard/skills/frontend/SKILL.md": "7604dfdc744ee916cd3fe918b0655260325d1eb12948cc1b48199c850180af1a",
+		".web-standard/tools/screenshot.ts": "1ddcda4196e26dc89dafb757ac567488dd740eed7c10b72681f25cdee78d3b82",
+		".web-standard/config.json": "2e0443f50701f88e64571c0147e09a0a9c363a06feca7e2550fe0030be60a97f",
+		"eslint.config.js": "6fbca49ca128b45c3eeca380c40b5bb529706ec3ba9280ad15ee98a18a8a57e0",
+		".codex/hooks.json": "1d910a0a0ff1355af12dc26a2de3f50d0be06fc260d2d8b2d29ac9dbb9e44636"
+	},
+	"links": {
+		".agents/skills/frontend": "../../.web-standard/skills/frontend",
+		".claude/skills/frontend": "../../.web-standard/skills/frontend"
+	},
+	"devDependencies": [
+		"@eslint/js",
+		"eslint",
+		"eslint-config-prettier",
+		"eslint-plugin-better-tailwindcss",
+		"eslint-plugin-svelte",
+		"globals",
+		"playwright-core",
+		"typescript-eslint"
+	],
+	"managed": {
+		"AGENTS.md": "eb27cc2aaa73f63dc36b7d38c8f39427ca22b5ef31ef205f60b4b8431e6bace8",
+		"CLAUDE.md": "918b1c90559355ef78f33fdf3562f2b021ef8bdfd8a5c8415e5decd44934de55",
+		".claude/settings.json": "fea5cbfb5b0114bd969e025130370ecda9d11da464860ced06a4b5489fec7c8d",
+		"package.json": "c10fde28f74ac8500d0f4577b0136ac4f025e591a61057a8c73bc032669d1fb1",
+		".gitignore": "ea67edcad39529086f1b078cb73d7f3e4ce98b0cd1bd74e668c74a01f282e11d",
+		".prettierignore": "7bd39ae92ba45f8a589bee219e8b42d060ade4b748208ca27c6f12213a4f6b41"
+	}
+}
