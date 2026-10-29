@@ -1,22 +1,23 @@
-"""Command-line entry point: `login`, `run` and `render`.
+"""Command-line entry point: `serve`, `run` and `render`.
 
-A run writes `<output_dir>/<timestamp>/digest.json` and `digest.html`; `render`
-rebuilds the HTML from a saved JSON record without touching the browser.
+`serve` starts the local web app (setup wizard and dashboard). `run` builds a
+digest of every configured source and `render` rebuilds the HTML from a saved
+digest.json; both are thin wrappers over `scrollforme.digest`.
 """
 
-import json
-import asyncio
 import argparse
 from pathlib import Path
-from datetime import datetime
 
+import uvicorn
 from loguru import logger
 
-from scrollforme.agent import collect_source
-from scrollforme.render import render_digest
-from scrollforme.browser import open_profile_for_login
-from scrollforme.config import DEFAULT_CONFIG_PATH, Settings, Source, load_settings
-from scrollforme.models import SourceDigest, digest_from_dict, digest_to_dict
+from scrollforme.digest import build_digest, rerender
+from scrollforme.server.app import create_app
+from scrollforme.server.context import AppContext
+from scrollforme.config import DEFAULT_CONFIG_PATH, load_settings
+
+DEFAULT_PORT = 8765
+DEFAULT_WEB_DIR = Path(__file__).resolve().parents[2] / "web" / "build"
 
 
 def main() -> None:
@@ -29,10 +30,11 @@ def _build_parser() -> argparse.ArgumentParser:
 	parser = argparse.ArgumentParser(prog="scrollforme", description=__doc__)
 	parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
 	commands = parser.add_subparsers(required=True)
-	commands.add_parser("login", help="open the browser profile to log in").set_defaults(
-		handler=_login
-	)
-	commands.add_parser("run", help="read every source and write a digest").set_defaults(
+	serve = commands.add_parser("serve", help="start the local web app")
+	serve.add_argument("--port", type=int, default=DEFAULT_PORT)
+	serve.add_argument("--web-dir", type=Path, default=DEFAULT_WEB_DIR)
+	serve.set_defaults(handler=_serve)
+	commands.add_parser("run", help="browse every configured site and write a digest").set_defaults(
 		handler=_run
 	)
 	render = commands.add_parser("render", help="rebuild HTML from a saved digest.json")
@@ -41,48 +43,22 @@ def _build_parser() -> argparse.ArgumentParser:
 	return parser
 
 
-def _login(args: argparse.Namespace) -> None:
-	settings = load_settings(args.config)
-	open_profile_for_login(settings.browser, [source.url for source in settings.sources])
+def _serve(args: argparse.Namespace) -> None:
+	web_dir = args.web_dir if (args.web_dir / "index.html").is_file() else None
+	if web_dir is None:
+		logger.error(
+			"No frontend build in {}; run `pnpm --dir web build`. Serving the API only.",
+			args.web_dir,
+		)
+	app = create_app(AppContext(args.config.resolve()), web_dir)
+	logger.info("Open http://127.0.0.1:{}/", args.port)
+	uvicorn.run(app, host="127.0.0.1", port=args.port)
 
 
 def _run(args: argparse.Namespace) -> None:
-	settings = load_settings(args.config)
-	started_at = datetime.now()
-	digests = asyncio.run(_collect_all(settings))
-	run_dir = settings.output_dir / started_at.strftime("%Y-%m-%d_%H%M%S")
-	html_path = _write_run(run_dir, digests, started_at)
+	html_path = build_digest(load_settings(args.config))
 	logger.info("Digest written to {}", html_path)
-
-
-async def _collect_all(settings: Settings) -> list[SourceDigest]:
-	"""Read sources one at a time: they share one browser profile, which Chrome locks."""
-	return [await _collect_or_record_error(source, settings) for source in settings.sources]
-
-
-async def _collect_or_record_error(source: Source, settings: Settings) -> SourceDigest:
-	try:
-		return await collect_source(source, settings)
-	except Exception as error:
-		logger.exception("Failed to read {}", source.name)
-		return SourceDigest(source.name, source.url, items=[], error=str(error))
-
-
-def _write_run(run_dir: Path, digests: list[SourceDigest], started_at: datetime) -> Path:
-	run_dir.mkdir(parents=True, exist_ok=True)
-	record = {
-		"generated_at": started_at.isoformat(),
-		"digests": [digest_to_dict(d) for d in digests],
-	}
-	(run_dir / "digest.json").write_text(json.dumps(record, indent="\t", ensure_ascii=False))
-	html_path = run_dir / "digest.html"
-	html_path.write_text(render_digest(digests, started_at))
-	return html_path
 
 
 def _render(args: argparse.Namespace) -> None:
-	record = json.loads(args.digest_json.read_text())
-	digests = [digest_from_dict(data) for data in record["digests"]]
-	html_path = args.digest_json.with_suffix(".html")
-	html_path.write_text(render_digest(digests, datetime.fromisoformat(record["generated_at"])))
-	logger.info("Digest written to {}", html_path)
+	logger.info("Digest written to {}", rerender(args.digest_json))

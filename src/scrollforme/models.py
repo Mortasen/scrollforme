@@ -1,83 +1,27 @@
-"""The digest data the agent must return, and its validation.
+"""What one site visit produced, as stored in a run's digest.json.
 
-The agent never writes HTML. It returns JSON matching `SOURCE_DIGEST_SCHEMA`;
-this module checks it and turns it into plain dataclasses that the template
-renders. Feed content is untrusted, so nothing here interprets it.
+A module's browse() returns a free-form dict. It is kept as the agent wrote it;
+feed content is untrusted, so it is only ever rendered as escaped text.
 """
 
-from dataclasses import asdict, dataclass
-
-ITEM_SCHEMA = {
-	"type": "object",
-	"additionalProperties": False,
-	"required": ["title", "url", "summary"],
-	"properties": {
-		"title": {"type": "string"},
-		"url": {"type": "string"},
-		"summary": {"type": "string"},
-		"author": {"type": "string"},
-		"posted_at": {"type": "string"},
-	},
-}
-
-SOURCE_DIGEST_SCHEMA = {
-	"type": "object",
-	"additionalProperties": False,
-	"required": ["items"],
-	"properties": {
-		"items": {"type": "array", "items": ITEM_SCHEMA},
-		"notes": {"type": "string"},
-	},
-}
+from dataclasses import asdict, dataclass, field
 
 
 @dataclass(frozen=True)
-class Item:
-	"""One post, reduced to what helps the reader decide whether to open it."""
+class SourceResult:
+	"""The data a module returned for one configured source, or why it returned none."""
 
-	title: str
-	url: str
-	summary: str
-	author: str = ""
-	posted_at: str = ""
-
-
-@dataclass(frozen=True)
-class SourceDigest:
-	"""What the agent collected from one source, or why it collected nothing."""
-
-	source_name: str
-	source_url: str
-	items: list[Item]
-	notes: str = ""
+	module: str
+	description: str
+	data: dict = field(default_factory=dict)
 	error: str = ""
 
 
-def parse_source_digest(
-	source_name: str, source_url: str, data: object, max_items: int
-) -> SourceDigest:
-	"""Validate the agent's structured output and cap it at `max_items`."""
-	if not isinstance(data, dict) or not isinstance(data.get("items"), list):
-		raise ValueError("agent output is not an object with an 'items' list")
-	items = [_parse_item(raw) for raw in data["items"][:max_items]]
-	return SourceDigest(source_name, source_url, items, notes=str(data.get("notes", "")))
+def result_to_dict(result: SourceResult) -> dict:
+	"""Serialise a result for the run's JSON record."""
+	return asdict(result)
 
 
-def _parse_item(raw: object) -> Item:
-	if not isinstance(raw, dict):
-		raise ValueError(f"item is not an object: {raw!r}")
-	fields = {key: str(raw.get(key, "")) for key in ITEM_SCHEMA["properties"]}
-	if not fields["url"].startswith(("https://", "http://")):
-		fields["url"] = ""
-	return Item(**fields)
-
-
-def digest_to_dict(digest: SourceDigest) -> dict:
-	"""Serialise a digest for the run's JSON record."""
-	return asdict(digest)
-
-
-def digest_from_dict(data: dict) -> SourceDigest:
-	"""Rebuild a digest from its JSON record."""
-	items = [Item(**item) for item in data["items"]]
-	return SourceDigest(**{**data, "items": items})
+def result_from_dict(data: dict) -> SourceResult:
+	"""Rebuild a result from its JSON record."""
+	return SourceResult(**data)

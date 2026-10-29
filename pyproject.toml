@@ -9,8 +9,11 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "claude-agent-sdk>=0.2.172",
+    "fastapi>=0.161.0",
     "jinja2>=3.1.6",
     "loguru>=0.7.3",
+    "tomli-w>=1.2.0",
+    "uvicorn>=0.54.0",
 ]
 
 [project.scripts]
@@ -22,6 +25,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "pytest>=9.1.1",
     "ruff>=0.17.2",
 ]

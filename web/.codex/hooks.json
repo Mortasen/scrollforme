@@ -1,0 +1,29 @@
+{
+	"description": "Owned by web-standard: the edit guard and after-edit check.",
+	"hooks": {
+		"PreToolUse": [
+			{
+				"matcher": "apply_patch|Bash",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"$(git rev-parse --show-toplevel)/.web-standard/hooks/guard.ts\"",
+						"timeout": 10
+					}
+				]
+			}
+		],
+		"PostToolUse": [
+			{
+				"matcher": "apply_patch|Bash",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"$(git rev-parse --show-toplevel)/.web-standard/hooks/after-edit.ts\"",
+						"timeout": 120
+					}
+				]
+			}
+		]
+	}
+}

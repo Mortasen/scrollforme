@@ -1,0 +1,8 @@
+{
+	"tailwindEntryPoint": "src/routes/layout.css",
+	"generatedPaths": [
+		"src/lib/components/ui/",
+		"src/lib/hooks/",
+		"src/lib/utils.ts"
+	]
+}
