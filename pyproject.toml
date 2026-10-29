@@ -1,0 +1,41 @@
+[project]
+name = "scrollforme"
+version = "0.1.0"
+description = "Let an AI agent scroll feeds for you and hand back a finite HTML digest."
+readme = "README.md"
+authors = [
+    { name = "Alexander Mortasen", email = "axmortasen@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "claude-agent-sdk>=0.2.172",
+    "jinja2>=3.1.6",
+    "loguru>=0.7.3",
+]
+
+[project.scripts]
+scrollforme = "scrollforme:main"
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.2",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.format]
+indent-style = "tab"
+
+[tool.ruff.lint]
+# No "I": imports are grouped by hand and sorted by line length, not alphabetically.
+select = ["E", "F", "B", "UP"]
+ignore = ["W191", "E101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
