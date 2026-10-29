@@ -4,6 +4,13 @@ The agent gets no built-in tools and only the read-only browser tools listed in
 `READ_ONLY_BROWSER_TOOLS`; every other call is denied without prompting. A
 logged-in feed is full of text written by strangers, so the agent must not be
 able to post, type, upload, run code or write files whatever a page tells it.
+
+`allowed_tools` only grants permission; the model still sees every tool the
+server registers. So the server is started with its unused sections disabled,
+and the writing tools of the two kept sections are listed as disallowed, which
+removes them from the model's context and keeps each turn cheap. No other MCP
+server may load either: the user's Claude Code config and claude.ai account
+connectors (Drive, Docs and the like) are switched off.
 """
 
 from loguru import logger
@@ -22,6 +29,30 @@ READ_ONLY_BROWSER_TOOLS = [
 	"query_elements",
 	"get_page_content",
 	"close_instance",
+]
+
+# Sections of stealth-browser-mcp, each disabled with a --disable-<section> flag.
+UNUSED_SERVER_SECTIONS = [
+	"element-extraction",
+	"file-extraction",
+	"network-debugging",
+	"cdp-functions",
+	"progressive-cloning",
+	"cookies-storage",
+	"tabs",
+	"debugging",
+	"dynamic-hooks",
+]
+
+# Tools in the kept sections (browser-management, element-interaction) that can act or write.
+WRITING_BROWSER_TOOLS = [
+	"click_element",
+	"type_text",
+	"paste_text",
+	"file_upload",
+	"select_option",
+	"execute_script",
+	"take_screenshot",
 ]
 
 SYSTEM_PROMPT = """\
@@ -66,7 +97,10 @@ def build_options(settings: Settings) -> ClaudeAgentOptions:
 		system_prompt=SYSTEM_PROMPT,
 		tools=[],
 		mcp_servers={MCP_SERVER_NAME: _browser_server_config(settings)},
-		allowed_tools=[f"mcp__{MCP_SERVER_NAME}__{name}" for name in READ_ONLY_BROWSER_TOOLS],
+		strict_mcp_config=True,
+		env={"ENABLE_CLAUDEAI_MCP_SERVERS": "false"},
+		allowed_tools=_browser_tool_names(READ_ONLY_BROWSER_TOOLS),
+		disallowed_tools=_browser_tool_names(WRITING_BROWSER_TOOLS),
 		permission_mode="dontAsk",
 		setting_sources=[],
 		max_turns=settings.agent.max_turns,
@@ -75,8 +109,14 @@ def build_options(settings: Settings) -> ClaudeAgentOptions:
 	)
 
 
+def _browser_tool_names(names: list[str]) -> list[str]:
+	return [f"mcp__{MCP_SERVER_NAME}__{name}" for name in names]
+
+
 def _browser_server_config(settings: Settings) -> dict:
-	return {"type": "stdio", "command": settings.mcp.command, "args": list(settings.mcp.args)}
+	disable_flags = [f"--disable-{section}" for section in UNUSED_SERVER_SECTIONS]
+	args = [*settings.mcp.args, *disable_flags]
+	return {"type": "stdio", "command": settings.mcp.command, "args": args}
 
 
 async def _run_agent(prompt: str, options: ClaudeAgentOptions) -> ResultMessage:

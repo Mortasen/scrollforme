@@ -14,7 +14,7 @@ scrollforme.toml ─► for each source ─► Claude agent ─► stealth-brows
 ```
 
 - **One agent run per source**, one source at a time. Each run has its own turn and dollar limits and is told the most items it may collect.
-- **The agent only reads.** It has no built-in tools (no shell and no file access), and only these browser tools are allowed: spawn, navigate, wait, scroll, query and read the page, and close. Any other call is denied without a prompt. Feed text is written by strangers and may contain prompt injection, and the browser is logged in as you.
+- **The agent only reads.** It has no built-in tools (no shell and no file access), and only these browser tools are allowed: spawn, navigate, wait, scroll, query and read the page, and close. Any other call is denied without a prompt. No other MCP server loads, including your Claude Code config and your claude.ai connectors. Feed text is written by strangers and may contain prompt injection, and the browser is logged in as you.
 - **The agent returns data, never HTML.** Its JSON is validated and cut down to the item limit. Then a fixed, autoescaped template renders it, with a CSP that blocks all scripts. Like counts and follower counts are left out on purpose.
 
 ## Why a separate browser profile

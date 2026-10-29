@@ -12,7 +12,12 @@ Read `README.md` first for what the tool does and how a run flows.
 
 Do not weaken these without the user's explicit agreement:
 
-1. The browsing agent gets `tools=[]`, `permission_mode="dontAsk"`, `setting_sources=[]`, and only the tools in `agent.READ_ONLY_BROWSER_TOOLS`. Adding a tool that can type, click, upload, run scripts or write files gives injected feed content a way to act as the logged-in user.
+1. The browsing agent gets:
+   - `tools=[]`, `permission_mode="dontAsk"` and `setting_sources=[]`;
+   - only the tools in `agent.READ_ONLY_BROWSER_TOOLS`, with `WRITING_BROWSER_TOOLS` disallowed;
+   - `strict_mcp_config=True` and `ENABLE_CLAUDEAI_MCP_SERVERS=false`.
+
+   The last two settings matter: without them the account's claude.ai connectors (Google Drive and others) load into the agent. Adding a tool that can type, click, upload, run scripts or write files gives injected feed content a way to act as the logged-in user. `tests/test_agent.py` pins all of this, and the SDK init message's `tools` list is how to check it live.
 2. The agent returns JSON. Only `render.py`, with autoescaping on, produces HTML.
 3. Every source has `max_items`, and every run has `max_turns` and `max_budget_usd`.
 
