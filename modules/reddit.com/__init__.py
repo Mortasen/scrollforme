@@ -31,9 +31,10 @@ description asks about comments or a title alone does not say what the post is, 
 
 Read pages with query_elements, not get_page_content: a Reddit page's full HTML is too large for
 one reply. Posts should be shreddit-post elements whose attributes carry post-title, permalink,
-subreddit-prefixed-name and created-timestamp, so query "shreddit-post" with a limit of 25. If
-there are none, query article elements or links whose href contains /comments/ instead. Skip
-shreddit-ad-post elements and anything marked promoted.
+subreddit-prefixed-name and created-timestamp. Every result costs context, so scroll first and
+then query "shreddit-post" once per listing with a limit of 15; a repeated query returns the same
+first posts. If there are none, query article elements or links whose href contains /comments/
+instead. Skip shreddit-ad-post elements and anything marked promoted.
 
 Leave cookie banners, "open in app" and other overlays alone: you cannot click, and the posts are
 in the page underneath. If you see "Prove your humanity", a CAPTCHA, a "blocked" notice or a
@@ -62,7 +63,11 @@ def _warn_if_headless() -> None:
 def _route_guidance(subreddits: list[str]) -> str:
 	"""Say which listing pages to visit, in place of the algorithmic home feed when possible."""
 	if not subreddits:
-		return "The description names no subreddit, so read the user's home feed at the start URL."
+		return (
+			"No r/<name> link was found in the description. If it names subreddits another "
+			"way, visit their /top/?t=day listings; otherwise read the user's home feed at the "
+			"start URL."
+		)
 	listings = "\n".join(f"- {listing_url(name)}" for name in subreddits)
 	return (
 		"Visit these listing pages, in this order, rather than the algorithmic home feed. "
