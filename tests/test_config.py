@@ -22,15 +22,12 @@ def test_example_config_loads():
 	settings = load_settings(EXAMPLE_CONFIG)
 	assert [source.module for source in settings.sources] == ["reddit.com", "instagram.com"]
 	assert settings.modules_dir == REPO_ROOT / "modules"
-	assert settings.browser.profile_dir.is_absolute()
-	assert "~" not in settings.mcp.command
-	assert all("~" not in arg for arg in settings.mcp.args)
+	assert settings.browser.kind == "chrome"
 
 
 def test_relative_paths_resolve_against_config_dir(tmp_path):
 	raw = {"sources": [{"module": "a.com", "description": "news"}]}
 	settings = parse_settings(raw, base_dir=tmp_path)
-	assert settings.browser.profile_dir == tmp_path / "profile"
 	assert settings.output_dir == tmp_path / "output"
 	assert settings.modules_dir == tmp_path / "modules"
 
@@ -78,3 +75,9 @@ def test_invalid_config_is_not_saved(tmp_path):
 	with pytest.raises(ValueError):
 		save_raw_config(default_raw_config(), path)
 	assert not path.exists()
+
+
+def test_unknown_browser_kind_is_rejected(tmp_path):
+	raw = {"browser": {"kind": "safari"}, "sources": [{"module": "a.com", "description": "x"}]}
+	with pytest.raises(ValueError, match="browser kind"):
+		parse_settings(raw, base_dir=tmp_path)

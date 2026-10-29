@@ -9,10 +9,8 @@
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title>1. Check this machine</Card.Title>
-		<Card.Description>
-			scrollforme runs locally: Chrome, the stealth browser server and a browser profile of its own.
-		</Card.Description>
+		<Card.Title>Is this machine ready?</Card.Title>
+		<Card.Description>scrollforme runs here, in your own browser.</Card.Description>
 	</Card.Header>
 	<Card.Content>
 		<ul class="space-y-2">
@@ -32,8 +30,5 @@
 				</li>
 			{/each}
 		</ul>
-		<p class="mt-3 text-xs text-muted-foreground">
-			A missing browser profile is expected before your first login (step 4).
-		</p>
 	</Card.Content>
 </Card.Root>

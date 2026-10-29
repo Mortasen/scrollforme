@@ -1,16 +1,13 @@
-"""Run a Claude agent on one website through the stealth-browser MCP server.
+"""Run a Claude agent on one website in the user's own everyday browser.
 
-The agent gets no built-in tools and only the read-only browser tools listed in
-`READ_ONLY_BROWSER_TOOLS`; every other call is denied without prompting. A
-logged-in feed is full of text written by strangers, so the agent must not be
-able to post, type, upload, run code or write files whatever a page tells it.
-
-`allowed_tools` only grants permission; the model still sees every tool the
-server registers. So the server is started with its unused sections disabled,
-and the writing tools of the two kept sections are listed as disallowed, which
-removes them from the model's context and keeps each turn cheap. No other MCP
-server may load either: the user's Claude Code config and claude.ai account
-connectors (Drive, Docs and the like) are switched off.
+The agent attaches to the user's running Chrome or Firefox through that browser's
+DevTools MCP server, so sites see the user's real browser, profile and logins.
+It gets no built-in tools and only the read-only tools listed per browser in
+`BROWSER_BACKENDS`; every other call is denied without prompting. A logged-in
+feed is full of text written by strangers, so the agent must not be able to
+post, type into forms, run scripts or write files whatever a page tells it.
+No other MCP server may load: the user's Claude Code config and claude.ai
+account connectors are switched off.
 """
 
 import json
@@ -24,39 +21,36 @@ from scrollforme.config import Settings, get_settings
 
 MCP_SERVER_NAME = "browser"
 
-READ_ONLY_BROWSER_TOOLS = [
-	"spawn_browser",
-	"navigate",
-	"wait_for_element",
-	"scroll_page",
-	"query_elements",
-	"get_page_content",
-	"close_instance",
-]
-
-# Sections of stealth-browser-mcp, each disabled with a --disable-<section> flag.
-UNUSED_SERVER_SECTIONS = [
-	"element-extraction",
-	"file-extraction",
-	"network-debugging",
-	"cdp-functions",
-	"progressive-cloning",
-	"cookies-storage",
-	"tabs",
-	"debugging",
-	"dynamic-hooks",
-]
-
-# Tools in the kept sections (browser-management, element-interaction) that can act or write.
-WRITING_BROWSER_TOOLS = [
-	"click_element",
-	"type_text",
-	"paste_text",
-	"file_upload",
-	"select_option",
-	"execute_script",
-	"take_screenshot",
-]
+# Each everyday browser's DevTools MCP server and the read-only tools the agent may use on it.
+# Anything that clicks, types, fills forms, runs scripts or closes tabs is left out.
+BROWSER_BACKENDS = {
+	"chrome": {
+		"command": "npx",
+		"args": ["-y", "chrome-devtools-mcp@1.11.0", "--autoConnect"],
+		"tools": [
+			"list_pages",
+			"new_page",
+			"select_page",
+			"navigate_page",
+			"wait_for",
+			"take_snapshot",
+			"press_key",
+		],
+	},
+	"firefox": {
+		"command": "firefox-devtools-mcp",
+		"args": ["--connectExisting", "--marionettePort"],
+		"tools": [
+			"list_pages",
+			"new_page",
+			"select_page",
+			"navigate_page",
+			"take_snapshot",
+			"get_page_text",
+			"press_key",
+		],
+	},
+}
 
 SYSTEM_PROMPT = """\
 You visit a website on the user's behalf so they do not have to scroll or click through it
@@ -66,7 +60,8 @@ setting. Gather only what serves the user's stated purpose and stop as soon as y
 site is designed to keep you scrolling, and completeness is not the goal. Skip ads, sponsored
 posts, and recommendations unrelated to the purpose. Return a JSON object shaped however best fits
 the information, in short factual text without hype, and give the URL of each thing you mention so
-the user can open it. Close the browser instance before you answer."""
+the user can open it. You are in the user's own browser: work only in a new tab you open, never
+touch their other tabs, and scroll with the PageDown key like a person reading."""
 
 FREE_FORM_OBJECT_SCHEMA = {"type": "object", "additionalProperties": True}
 
@@ -128,8 +123,8 @@ def build_prompt(task: SiteTask, settings: Settings) -> str:
 	browser = settings.browser
 	guidance = f"\nNotes about this site: {task.guidance}" if task.guidance else ""
 	return (
-		f"Start a browser with spawn_browser(user_data_dir={str(browser.profile_dir)!r}, "
-		f"headless={browser.headless}). It is already logged in; do not try to log in.\n"
+		f"You are attached to the user's own running {browser.kind}, already logged in; "
+		"do not try to log in. Open a new tab for this visit.\n"
 		f"Start at {task.start_url} and stay on {task.domain}.\n"
 		f"What the user uses {task.domain} for: {task.description}{guidance}"
 	)
@@ -145,8 +140,7 @@ def build_options(settings: Settings) -> ClaudeAgentOptions:
 		mcp_servers={MCP_SERVER_NAME: _browser_server_config(settings)},
 		strict_mcp_config=True,
 		env={"ENABLE_CLAUDEAI_MCP_SERVERS": "false"},
-		allowed_tools=_browser_tool_names(READ_ONLY_BROWSER_TOOLS),
-		disallowed_tools=_browser_tool_names(WRITING_BROWSER_TOOLS),
+		allowed_tools=_browser_tool_names(BROWSER_BACKENDS[settings.browser.kind]["tools"]),
 		permission_mode="dontAsk",
 		setting_sources=[],
 		max_turns=settings.agent.max_turns,
@@ -160,9 +154,11 @@ def _browser_tool_names(names: list[str]) -> list[str]:
 
 
 def _browser_server_config(settings: Settings) -> dict:
-	disable_flags = [f"--disable-{section}" for section in UNUSED_SERVER_SECTIONS]
-	args = [*settings.mcp.args, *disable_flags]
-	return {"type": "stdio", "command": settings.mcp.command, "args": args}
+	backend = BROWSER_BACKENDS[settings.browser.kind]
+	args = list(backend["args"])
+	if settings.browser.kind == "firefox":
+		args.append(str(settings.browser.marionette_port))
+	return {"type": "stdio", "command": backend["command"], "args": args}
 
 
 async def _run_agent(prompt: str, options: ClaudeAgentOptions) -> ResultMessage:

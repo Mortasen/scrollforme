@@ -9,7 +9,7 @@
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title>3. Set limits</Card.Title>
+		<Card.Title>How much may each visit cost?</Card.Title>
 		<Card.Description>Caps for each site visit, so a run can never scroll forever.</Card.Description
 		>
 	</Card.Header>

@@ -1,7 +1,7 @@
 """Keep the local API usable only by pages served from this machine.
 
-The API writes a config whose `mcp.command` and `chrome_binary` it later runs,
-so any web page that could reach it could run programs. The server binds to
+The API writes the config and starts runs that drive the user's own logged-in
+browser, so any web page that could reach it could act as the user. The server binds to
 127.0.0.1, and this middleware also refuses a request when:
 - its Host is not a localhost name, which stops DNS rebinding;
 - it changes state and its Origin is another site's;

@@ -10,12 +10,11 @@ from fastapi.responses import FileResponse
 from fastapi import APIRouter, Body, HTTPException, Request
 
 from scrollforme.site_modules import available_domains
-from scrollforme.browser import start_login_browser
 from scrollforme.server.context import AppContext
 from scrollforme.server.runs import RunInProgress
 from scrollforme.server.environment import check_environment
 from scrollforme.server.history import UnknownRun, list_runs, read_run, run_file
-from scrollforme.config import load_settings, parse_browser, resolve_dir, save_raw_config
+from scrollforme.config import load_settings, resolve_dir, save_raw_config
 
 router = APIRouter(prefix="/api")
 
@@ -52,26 +51,6 @@ def put_config(request: Request, config: Annotated[dict, Body(embed=True)]) -> d
 	return {"exists": True, "config": config}
 
 
-@router.get("/login")
-def get_login(request: Request) -> dict:
-	"""Whether the login browser is open."""
-	return {"open": _context(request).login_browser_open()}
-
-
-@router.post("/login")
-def post_login(request: Request) -> dict:
-	"""Open Chrome on the profile at each configured site so the user can log in."""
-	context = _context(request)
-	if context.runs.is_running():
-		raise HTTPException(409, "a run is using the browser profile")
-	if not context.login_browser_open():
-		raw = context.raw_config()
-		urls = [f"https://www.{source['module']}/" for source in raw.get("sources", [])]
-		browser = parse_browser(raw.get("browser", {}), context.base_dir)
-		context.login_browser = start_login_browser(browser, list(dict.fromkeys(urls)))
-	return {"open": True}
-
-
 @router.get("/runs")
 def get_runs(request: Request) -> list[dict]:
 	"""Saved runs, newest first."""
@@ -80,10 +59,8 @@ def get_runs(request: Request) -> list[dict]:
 
 @router.post("/runs", status_code=202)
 def post_run(request: Request) -> dict:
-	"""Start a run in the background; 409 if one is going or the login browser is open."""
+	"""Start a run in the background; 409 if one is going."""
 	context = _context(request)
-	if context.login_browser_open():
-		raise HTTPException(409, "close the login browser first: it holds the profile")
 	try:
 		context.runs.start(load_settings(context.config_path))
 	except RunInProgress as error:

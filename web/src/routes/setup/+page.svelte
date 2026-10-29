@@ -3,7 +3,7 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { sendJson, type RawConfig } from '#lib/api/client.js';
 	import SitesStep from './SitesStep.svelte';
-	import LoginStep from './LoginStep.svelte';
+	import BrowserStep from './BrowserStep.svelte';
 	import ChecksStep from './ChecksStep.svelte';
 	import LimitsStep from './LimitsStep.svelte';
 	import type { PageProps } from './$types';
@@ -40,6 +40,7 @@
 			ends.
 		</p>
 	</header>
+	<BrowserStep bind:kind={config.browser.kind} />
 	<ChecksStep checks={data.checks} />
 	<SitesStep modules={data.modules} bind:sources={config.sources} />
 	<LimitsStep bind:agent={config.agent} />
@@ -51,5 +52,4 @@
 		{/if}
 		{#if error}<p class="text-sm text-destructive" role="alert">{error}</p>{/if}
 	</div>
-	<LoginStep {saved} />
 </main>

@@ -1,26 +1,27 @@
 """Check, without spending anything, that the machine has what a run needs.
 
-These are filesystem checks only: they cannot tell whether a site is still
-logged in or whether the Claude credential works.
+These are PATH checks only: they cannot tell whether the browser has remote
+debugging switched on or whether the Claude credential works.
 """
 
 import shutil
 from pathlib import Path
 
-from scrollforme.config import parse_browser, parse_mcp, resolve_dir
+from scrollforme.config import BrowserSettings, resolve_dir
+
+BROWSER_PROGRAMS = {"chrome": ["google-chrome", "google-chrome-stable"], "firefox": ["firefox"]}
+MCP_PROGRAMS = {"chrome": "npx", "firefox": "firefox-devtools-mcp"}
 
 
 def check_environment(raw: dict, base_dir: Path) -> list[dict]:
 	"""One entry per check: its name, whether it passed, and a detail for the user."""
-	browser = parse_browser(raw.get("browser", {}), base_dir)
-	mcp = parse_mcp(raw.get("mcp", {}))
-	server_script = Path(mcp.args[0]) if mcp.args else Path()
+	kind = BrowserSettings(**raw.get("browser", {})).kind
+	browser = next(filter(shutil.which, BROWSER_PROGRAMS[kind]), None)
+	mcp = MCP_PROGRAMS[kind]
 	return [
-		_check("Chrome", shutil.which(browser.chrome_binary) is not None, browser.chrome_binary),
-		_check("stealth-browser-mcp Python", Path(mcp.command).is_file(), mcp.command),
-		_check("stealth-browser-mcp server", server_script.is_file(), str(server_script)),
+		_check(f"Your {kind}", browser is not None, browser or " or ".join(BROWSER_PROGRAMS[kind])),
+		_check(f"{kind} DevTools MCP launcher", shutil.which(mcp) is not None, mcp),
 		_check("Modules folder", resolve_dir(raw, "modules_dir", base_dir).is_dir(), "modules/"),
-		_check("Browser profile", browser.profile_dir.is_dir(), str(browser.profile_dir)),
 	]
 
 

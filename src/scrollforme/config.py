@@ -1,8 +1,8 @@
 """Load the user's scrollforme.toml into typed settings.
 
 The file names the sites to visit (by module domain) and what the user uses each
-for, the dedicated browser profile that holds the user's logins, how to launch
-the stealth-browser MCP server, and the agent's model and spending limits.
+for, which of the user's everyday browsers (Chrome or Firefox) the agent attaches
+to, and the agent's model and spending limits.
 
 Module `browse(description)` calls take no settings argument, so the active
 settings live here: `use_settings` sets them, `get_settings` reads them.
@@ -10,12 +10,11 @@ settings live here: `use_settings` sets them, `get_settings` reads them.
 
 import tomllib
 from pathlib import Path
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 
 import tomli_w
 
 DEFAULT_CONFIG_PATH = Path("scrollforme.toml")
-DEFAULT_MCP_ROOT = Path.home() / ".local/src/stealth-browser-mcp"
 
 
 @dataclass(frozen=True)
@@ -26,21 +25,24 @@ class Source:
 	description: str
 
 
+BROWSER_KINDS = ("chrome", "firefox")
+
+
 @dataclass(frozen=True)
 class BrowserSettings:
-	"""The persistent Chrome profile the agent browses with."""
+	"""Which of the user's everyday browsers the agent attaches to.
 
-	profile_dir: Path
-	chrome_binary: str = "google-chrome"
-	headless: bool = False
+	The agent works in the user's own running browser, with its own logins, through
+	that browser's DevTools MCP server: Chrome via chrome-devtools-mcp --autoConnect,
+	Firefox via firefox-devtools-mcp --connectExisting over Marionette.
+	"""
 
+	kind: str = "chrome"
+	marionette_port: int = 2828
 
-@dataclass(frozen=True)
-class McpSettings:
-	"""How to start the stealth-browser MCP server as a stdio subprocess."""
-
-	command: str = str(DEFAULT_MCP_ROOT / ".venv/bin/python")
-	args: list[str] = field(default_factory=lambda: [str(DEFAULT_MCP_ROOT / "src/server.py")])
+	def __post_init__(self) -> None:
+		if self.kind not in BROWSER_KINDS:
+			raise ValueError(f"browser kind must be one of {BROWSER_KINDS}, not {self.kind!r}")
 
 
 @dataclass(frozen=True)
@@ -59,7 +61,6 @@ class Settings:
 
 	sources: list[Source]
 	browser: BrowserSettings
-	mcp: McpSettings
 	agent: AgentSettings
 	output_dir: Path
 	modules_dir: Path
@@ -86,8 +87,7 @@ def default_raw_config() -> dict:
 	return {
 		"output_dir": "output",
 		"modules_dir": "modules",
-		"browser": {"profile_dir": "profile", "chrome_binary": "google-chrome", "headless": False},
-		"mcp": asdict(McpSettings()),
+		"browser": asdict(BrowserSettings()),
 		"agent": asdict(AgentSettings()),
 		"sources": [],
 	}
@@ -128,8 +128,7 @@ def parse_settings(raw: dict, base_dir: Path) -> Settings:
 	_reject_blank_descriptions(sources)
 	return Settings(
 		sources=sources,
-		browser=parse_browser(raw.get("browser", {}), base_dir),
-		mcp=parse_mcp(raw.get("mcp", {})),
+		browser=BrowserSettings(**raw.get("browser", {})),
 		agent=AgentSettings(**raw.get("agent", {})),
 		output_dir=resolve_dir(raw, "output_dir", base_dir),
 		modules_dir=resolve_dir(raw, "modules_dir", base_dir),
@@ -146,22 +145,3 @@ def _reject_blank_descriptions(sources: list[Source]) -> None:
 	blank = [source.module for source in sources if not source.description.strip()]
 	if blank:
 		raise ValueError(f"sources without a description: {blank}")
-
-
-def parse_browser(raw: dict, base_dir: Path) -> BrowserSettings:
-	"""Browser settings from a `[browser]` table; the profile path resolves against `base_dir`."""
-	options = {key: value for key, value in raw.items() if key != "profile_dir"}
-	profile_dir = Path(raw.get("profile_dir", "profile")).expanduser()
-	return BrowserSettings(profile_dir=(base_dir / profile_dir).resolve(), **options)
-
-
-def parse_mcp(raw: dict) -> McpSettings:
-	"""MCP launch settings from an `[mcp]` table, with `~` expanded."""
-	expanded = {key: _expand_home(value) for key, value in raw.items()}
-	return McpSettings(**expanded)
-
-
-def _expand_home(value: str | list[str]) -> str | list[str]:
-	if isinstance(value, list):
-		return [str(Path(item).expanduser()) for item in value]
-	return str(Path(value).expanduser())

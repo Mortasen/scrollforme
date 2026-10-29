@@ -1,13 +1,13 @@
 from pathlib import Path
+from dataclasses import replace
 
-from scrollforme.config import load_settings
+from scrollforme.config import BrowserSettings, load_settings
 from scrollforme.agent import (
-	READ_ONLY_BROWSER_TOOLS,
-	WRITING_BROWSER_TOOLS,
+	BROWSER_BACKENDS,
 	SiteTask,
-	decode_nested_json,
 	build_options,
 	build_prompt,
+	decode_nested_json,
 )
 
 SETTINGS = load_settings(Path(__file__).parent.parent / "scrollforme.example.toml")
@@ -29,22 +29,28 @@ def test_no_mcp_server_but_the_browser_can_load():
 
 def test_only_read_only_browser_tools_are_allowed():
 	options = build_options(SETTINGS)
-	assert options.allowed_tools == [f"mcp__browser__{name}" for name in READ_ONLY_BROWSER_TOOLS]
-	assert options.disallowed_tools == [f"mcp__browser__{name}" for name in WRITING_BROWSER_TOOLS]
-	assert set(WRITING_BROWSER_TOOLS).isdisjoint(READ_ONLY_BROWSER_TOOLS)
+	expected = BROWSER_BACKENDS["chrome"]["tools"]
+	assert options.allowed_tools == [f"mcp__browser__{name}" for name in expected]
+	for backend in BROWSER_BACKENDS.values():
+		assert {"click", "fill", "evaluate_script", "close_page"}.isdisjoint(backend["tools"])
 
 
-def test_server_starts_with_unused_sections_disabled():
-	args = build_options(SETTINGS).mcp_servers["browser"]["args"]
-	assert "--disable-network-debugging" in args
-	assert "--disable-browser-management" not in args
-	assert "--disable-element-interaction" not in args
+def test_chrome_attaches_to_the_running_browser():
+	server = build_options(SETTINGS).mcp_servers["browser"]
+	assert "--autoConnect" in server["args"]
+
+
+def test_firefox_attaches_over_marionette():
+	firefox = replace(SETTINGS, browser=BrowserSettings(kind="firefox", marionette_port=2829))
+	server = build_options(firefox).mcp_servers["browser"]
+	assert server["command"] == "firefox-devtools-mcp"
+	assert server["args"][-2:] == ["--marionettePort", "2829"]
 
 
 def test_prompt_carries_profile_site_and_purpose():
 	task = SiteTask("reddit.com", "https://www.reddit.com/", "new open models", "skip promos")
 	prompt = build_prompt(task, SETTINGS)
-	assert str(SETTINGS.browser.profile_dir) in prompt
+	assert "user's own running chrome" in prompt
 	assert "stay on reddit.com" in prompt
 	assert "new open models" in prompt
 	assert "skip promos" in prompt

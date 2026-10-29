@@ -20,7 +20,7 @@
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title>2. Choose your sites</Card.Title>
+		<Card.Title>Which sites do you check, and why?</Card.Title>
 		<Card.Description>
 			Say in your own words what you use each site for. The agent takes only that, then stops.
 		</Card.Description>

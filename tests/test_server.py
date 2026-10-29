@@ -77,7 +77,7 @@ def test_setup_lists_modules_and_checks(client, tmp_path):
 	(tmp_path / "modules" / "reddit.com" / "__init__.py").write_text("")
 	body = client.get("/api/setup").json()
 	assert body["modules"] == ["reddit.com"]
-	assert {check["name"] for check in body["checks"]} >= {"Chrome", "Browser profile"}
+	assert "Modules folder" in {check["name"] for check in body["checks"]}
 
 
 def test_partial_config_is_returned_with_defaults(client, tmp_path):

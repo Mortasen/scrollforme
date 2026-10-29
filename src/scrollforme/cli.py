@@ -1,4 +1,4 @@
-"""Command-line entry point: `serve`, `login`, `run` and `render`.
+"""Command-line entry point: `serve`, `run` and `render`.
 
 `serve` starts the local web app (setup wizard and dashboard). `run` builds a
 digest of every configured source and `render` rebuilds the HTML from a saved
@@ -12,7 +12,6 @@ import uvicorn
 from loguru import logger
 
 from scrollforme.digest import build_digest, rerender
-from scrollforme.browser import open_profile_for_login
 from scrollforme.server.app import create_app
 from scrollforme.server.context import AppContext
 from scrollforme.config import DEFAULT_CONFIG_PATH, load_settings
@@ -35,9 +34,6 @@ def _build_parser() -> argparse.ArgumentParser:
 	serve.add_argument("--port", type=int, default=DEFAULT_PORT)
 	serve.add_argument("--web-dir", type=Path, default=DEFAULT_WEB_DIR)
 	serve.set_defaults(handler=_serve)
-	commands.add_parser("login", help="open the browser profile to log in").set_defaults(
-		handler=_login
-	)
 	commands.add_parser("run", help="browse every configured site and write a digest").set_defaults(
 		handler=_run
 	)
@@ -57,12 +53,6 @@ def _serve(args: argparse.Namespace) -> None:
 	app = create_app(AppContext(args.config.resolve()), web_dir)
 	logger.info("Open http://127.0.0.1:{}/", args.port)
 	uvicorn.run(app, host="127.0.0.1", port=args.port)
-
-
-def _login(args: argparse.Namespace) -> None:
-	settings = load_settings(args.config)
-	urls = [f"https://www.{source.module}/" for source in settings.sources]
-	open_profile_for_login(settings.browser, list(dict.fromkeys(urls)))
 
 
 def _run(args: argparse.Namespace) -> None:

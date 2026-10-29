@@ -7,15 +7,11 @@ output_dir = "output"
 modules_dir = "modules"
 
 [browser]
-# A dedicated Chrome profile. Log in to each site once with `scrollforme login`.
-profile_dir = "profile"
-chrome_binary = "google-chrome"
-headless = false
-
-[mcp]
-# How to start stealth-browser-mcp (https://github.com/vibheksoni/stealth-browser-mcp).
-command = "~/.local/src/stealth-browser-mcp/.venv/bin/python"
-args = ["~/.local/src/stealth-browser-mcp/src/server.py"]
+# Your everyday browser, with your own logins: "chrome" or "firefox".
+# Chrome: turn on remote debugging once at chrome://inspect/#remote-debugging.
+# Firefox: start it with --marionette (port below).
+kind = "chrome"
+marionette_port = 2828
 
 [agent]
 model = "claude-opus-5-5"

@@ -1,6 +1,5 @@
-"""State the API shares between requests: the config file, the run, the login browser."""
+"""State the API shares between requests: the config file and the run."""
 
-import subprocess
 from pathlib import Path
 from dataclasses import dataclass, field
 
@@ -14,7 +13,6 @@ class AppContext:
 
 	config_path: Path
 	runs: RunManager = field(default_factory=RunManager)
-	login_browser: subprocess.Popen | None = None
 
 	@property
 	def base_dir(self) -> Path:
@@ -34,7 +32,3 @@ class AppContext:
 	def output_dir(self) -> Path:
 		"""Where runs are saved."""
 		return resolve_dir(self.raw_config(), "output_dir", self.base_dir)
-
-	def login_browser_open(self) -> bool:
-		"""Whether the login Chrome window is still running (it holds the profile lock)."""
-		return self.login_browser is not None and self.login_browser.poll() is None

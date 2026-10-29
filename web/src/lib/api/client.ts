@@ -9,7 +9,12 @@ export type AgentConfig = {
 	max_budget_usd: number;
 };
 
-export type RawConfig = { sources: Source[]; agent: AgentConfig } & Record<string, unknown>;
+export type BrowserConfig = { kind: 'chrome' | 'firefox'; marionette_port: number };
+
+export type RawConfig = { sources: Source[]; agent: AgentConfig; browser: BrowserConfig } & Record<
+	string,
+	unknown
+>;
 
 export type Check = { name: string; ok: boolean; detail: string };
 
