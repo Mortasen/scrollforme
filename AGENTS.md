@@ -9,11 +9,12 @@ Read `README.md` first for what the tool does and how a run flows.
 - `src/scrollforme/`:
   - `config`: TOML → settings, plus `use_settings`/`get_settings`, because `browse()` takes no settings argument.
   - `site_modules`: the module loader.
+  - `digest`: runs every configured source's module and writes digest.json + digest.html (`build_digest`, `rerender`).
   - `agent`: Agent SDK options, prompt and `browse_site`.
   - `models`: the per-source result record.
   - `browser`: manual login.
   - `render` + `templates/`: generic HTML rendering of free-form dicts.
-  - `cli`.
+  - `cli`: thin argparse wrapper over `digest`.
 - The agent's output schema is a free-form object. Live runs showed the model sends nested lists as JSON-encoded strings, even with a recursive schema, so `agent.decode_nested_json` decodes them.
 - Personal files are git-ignored and must stay out of commits: `scrollforme.toml`, `profile/` (holds real login cookies), `output/`.
 

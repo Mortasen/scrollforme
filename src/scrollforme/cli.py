@@ -1,21 +1,17 @@
 """Command-line entry point: `login`, `run` and `render`.
 
-A run writes `<output_dir>/<timestamp>/digest.json` and `digest.html`; `render`
-rebuilds the HTML from a saved JSON record without touching the browser.
+`run` builds a digest of every configured source and `render` rebuilds the HTML
+from a saved digest.json; both are thin wrappers over `scrollforme.digest`.
 """
 
-import json
 import argparse
 from pathlib import Path
-from datetime import datetime
 
 from loguru import logger
 
-from scrollforme.render import render_digest
-from scrollforme.site_modules import load_browse
+from scrollforme.digest import build_digest, rerender
 from scrollforme.browser import open_profile_for_login
-from scrollforme.models import SourceResult, result_from_dict, result_to_dict
-from scrollforme.config import DEFAULT_CONFIG_PATH, Settings, Source, load_settings, use_settings
+from scrollforme.config import DEFAULT_CONFIG_PATH, load_settings
 
 
 def main() -> None:
@@ -47,40 +43,9 @@ def _login(args: argparse.Namespace) -> None:
 
 
 def _run(args: argparse.Namespace) -> None:
-	settings = load_settings(args.config)
-	use_settings(settings)
-	started_at = datetime.now()
-	results = [_browse_or_record_error(source, settings) for source in settings.sources]
-	run_dir = settings.output_dir / started_at.strftime("%Y-%m-%d_%H%M%S")
-	html_path = _write_run(run_dir, results, started_at)
+	html_path = build_digest(load_settings(args.config))
 	logger.info("Digest written to {}", html_path)
-
-
-def _browse_or_record_error(source: Source, settings: Settings) -> SourceResult:
-	"""Run one module; sources go one at a time because they share one locked profile."""
-	try:
-		data = load_browse(settings.modules_dir, source.module)(source.description)
-		return SourceResult(source.module, source.description, data=data)
-	except Exception as error:
-		logger.exception("Failed to browse {}", source.module)
-		return SourceResult(source.module, source.description, error=str(error))
-
-
-def _write_run(run_dir: Path, results: list[SourceResult], started_at: datetime) -> Path:
-	run_dir.mkdir(parents=True, exist_ok=True)
-	record = {
-		"generated_at": started_at.isoformat(),
-		"results": [result_to_dict(result) for result in results],
-	}
-	(run_dir / "digest.json").write_text(json.dumps(record, indent="\t", ensure_ascii=False))
-	html_path = run_dir / "digest.html"
-	html_path.write_text(render_digest(results, started_at))
-	return html_path
 
 
 def _render(args: argparse.Namespace) -> None:
-	record = json.loads(args.digest_json.read_text())
-	results = [result_from_dict(data) for data in record["results"]]
-	html_path = args.digest_json.with_suffix(".html")
-	html_path.write_text(render_digest(results, datetime.fromisoformat(record["generated_at"])))
-	logger.info("Digest written to {}", html_path)
+	logger.info("Digest written to {}", rerender(args.digest_json))

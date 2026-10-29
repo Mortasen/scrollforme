@@ -52,6 +52,8 @@ uv run scrollforme run                         # writes output/<timestamp>/diges
 uv run scrollforme render output/<run>/digest.json   # re-render after template changes
 ```
 
+From Python (for a scheduler or another front end), call `scrollforme.digest.build_digest(load_settings())`. It returns the path of the HTML file. It runs the modules named in `[[sources]]`, not every folder in `modules/`, because each module needs your description. It also warns about module folders that no source uses.
+
 **Authentication.** The Agent SDK uses `ANTHROPIC_API_KEY` if it is set. Otherwise it uses your Claude Code login.
 
 **Cost.** The default model is `claude-opus-5-5` at `medium` effort, capped by `max_budget_usd` per site visit. You can change all three in `[agent]`.
